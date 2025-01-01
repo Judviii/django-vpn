@@ -1,25 +1,81 @@
+import os
 import requests
+import shutil
+import uuid
+from bs4 import BeautifulSoup
 from django.shortcuts import render
 from .models import Sites
 from django.views import generic, View
 from django.urls import reverse_lazy
 from .models import Sites
-from urllib.parse import urljoin, unquote
-from django.http import HttpResponse
+from urllib.parse import urljoin, urlparse, unquote
 from django.utils.safestring import mark_safe
-from bs4 import BeautifulSoup
+
+
+def create_unique_folder_name():
+    return str(uuid.uuid4())
+
+
+def create_directory(name):
+    if not os.path.exists(name):
+        os.makedirs(name)
+
+
+def download_file(url, folder):
+    if url.startswith("data:"):
+        return None
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        filename = os.path.join(folder, os.path.basename(urlparse(url).path))
+        with open(filename, "wb") as f:
+            f.write(response.content)
+        return filename
+    return None
+
+
+def download_page(url, site_name, folder="temp"):
+    unique_folder = site_name
+    folder_path = os.path.join(folder, unique_folder)
+    create_directory(folder_path)
+
+    images_folder = os.path.join(folder_path, 'images')
+    includes_folder = os.path.join(folder_path, 'includes')
+    video_folder = os.path.join(folder_path, 'video')
+
+    create_directory(images_folder)
+    create_directory(includes_folder)
+    create_directory(video_folder)
+
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    for link in soup.find_all("link", {"rel": "stylesheet"}):
+        css_url = urljoin(url, link["href"])
+        local_css_path = download_file(css_url, includes_folder)
+        if local_css_path:
+            link["href"] = f"/temp/{unique_folder}/includes/" + os.path.basename(local_css_path)
+
+    for img in soup.find_all("img"):
+        if img.has_attr("src"):
+            img_url = urljoin(url, img["src"])
+            local_img_path = download_file(img_url, images_folder)
+            if local_img_path:
+                img["src"] = f"/temp/{unique_folder}/images/" + os.path.basename(local_img_path)
+
+    for script in soup.find_all("script", {"src": True}):
+        js_url = urljoin(url, script["src"])
+        local_js_path = download_file(js_url, includes_folder)
+        if local_js_path:
+            script["src"] = f"/temp/{unique_folder}/includes/" + os.path.basename(local_js_path)
+
+    return str(soup)
 
 
 def index(request):
     return render(
         request, "vpn_manager/index.html",
     )
-
-def get_site_html(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.text
-    return "Error loading page"
 
 
 class SitesListView(generic.ListView):
@@ -65,22 +121,9 @@ class SitesConnectView(View):
     template_name = "vpn_manager/sites_connect.html"
     def get(self, request, url, name, *args, **kwargs):
         decoded_url = unquote(url)
-
-        site_html = get_site_html(decoded_url)
-        
-        base_url = f"https://{decoded_url}"
-        site_html = self.make_absolute_urls(site_html, base_url)
-
-        return HttpResponse(mark_safe(site_html), content_type='text/html; charset=utf-8')
-
-    def make_absolute_urls(self, html_content, base_url):
-        soup = BeautifulSoup(html_content, "html.parser")
-        for tag in soup.find_all(["img", "link", "script"]):
-            if tag.name == "img" and tag.get("src"):
-                tag["src"] = urljoin(base_url, tag["src"])
-            elif tag.name == "link" and tag.get("href"):
-                tag["href"] = urljoin(base_url, tag["href"])
-            elif tag.name == "script" and tag.get("src"):
-                tag["src"] = urljoin(base_url, tag["src"])
-
-        return str(soup)
+        site_name = f"{name}"
+        site_html = download_page(decoded_url, site_name)
+        context = {
+            'site_html': site_html
+        }
+        return render(request, self.template_name, context)
