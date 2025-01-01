@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="section section-md">
+    <div class="container">
+      <div class="row mb-5 mb-lg-5">
+        <div class="col-lg-4 col-sm-6">
+          <h1>Delete ?</h1>
+          <a class="btn btn-outline-success">
+            Cancel
+          </a>
+          <form action="" method="post">
+            {% csrf_token %}
+
+            <input type="submit" value="Yes, delete" class="btn btn-outline-danger">
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

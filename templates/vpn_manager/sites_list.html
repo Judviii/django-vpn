@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="section section-md">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-12">
+        <div class="mb-4">
+          <span class="h5">Sitesn table     <a href="{% url 'vpn-manager:sites-create' %}" class="btn btn btn-outline-success link-to-page">
+           Create
+    </a></span>
+        </div>
+        <div class="mb-5">
+          {% if sites_list %}
+          <table class="table">
+            <tr>
+              <th scope="col">Sites</th>
+            </tr>
+            {% for site in sites_list %}
+              <tr>
+                <td>
+                <a href="{% url 'vpn-manager:sites-connect' name=site.name url=site.url %}">
+                    {{ site.name }}
+                </a>
+              <a href="{% url 'vpn-manager:sites-update' pk=site.id %}" class="badge bg-tertiary">
+                update
+              </a>
+              <a href="{% url 'vpn-manager:sites-delete' pk=site.id %}" class="badge bg-danger">
+                delete
+              </a>
+              <a href="{% url 'vpn-manager:sites-detail' pk=site.id %}" class="badge bg-tertiary">
+                detail
+            </a>
+                </td>
+              </tr>
+            <!-- <tr>
+                <td>
+                  <a href="{% url 'vpn-manager:sites-detail' pk=site.id %}">
+              {{ site.name }}</a>
+              <a href="{% url 'vpn-manager:sites-update' pk=site.id %}" class="badge bg-tertiary">
+                update
+              </a>
+              <a href="{% url 'vpn-manager:sites-delete' pk=site.id %}" class="badge bg-danger">
+                delete
+              </a>
+                </td>
+              </tr> -->
+            {% endfor %}
+          </table>
+          {% else %}
+          No Sites provided
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
